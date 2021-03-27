@@ -11,15 +11,7 @@ class ConnectParser {
         }
     }
 
-    static class Server {
-        final InetAddress host;
-        final int port;
-
-        Server(final InetAddress host, final int port) {
-            this.host = host;
-            this.port = port;
-        }
-    }
+    static record Server (InetAddress host, int port) {}
 
     private static final String METHOD = "CONNECT";
 

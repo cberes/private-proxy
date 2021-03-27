@@ -72,8 +72,8 @@ class SocketHandler implements Runnable {
             return;
         }
 
-        if (!isValidHost(server.host.getHostName())) {
-            badRequest(server.host + " is not trusted");
+        if (!isValidHost(server.host().getHostName())) {
+            badRequest(server.host() + " is not trusted");
             return;
         }
 
@@ -91,8 +91,8 @@ class SocketHandler implements Runnable {
         String line;
         do {
             line = in.readLine();
-        } while ((line.length() != 0) &&
-                (line.charAt(0) != '\r') && (line.charAt(0) != '\n'));
+        } while (line != null && line.length() != 0 &&
+                line.charAt(0) != '\r' && line.charAt(0) != '\n');
     }
 
     private static boolean isValidHost(final String host) {
@@ -143,7 +143,7 @@ class SocketHandler implements Runnable {
     }
 
     private void tunnelClientAndServer(final Server server) throws IOException {
-        try (final Socket serverSocket = new Socket(server.host, server.port);
+        try (final Socket serverSocket = new Socket(server.host(), server.port());
              final Tunnel clientToServer = new Tunnel(clientSocket, serverSocket);
              final Tunnel serverToClient = new Tunnel(serverSocket, clientSocket)) {
 
