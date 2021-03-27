@@ -6,7 +6,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 
 class Tunnel extends Thread implements AutoCloseable {
-    private static final int BUFFER_SIZE = 400;
+    private static final int BUFFER_SIZE = 4096;
 
     private final Socket sockIn;
     private final Socket sockOut;
