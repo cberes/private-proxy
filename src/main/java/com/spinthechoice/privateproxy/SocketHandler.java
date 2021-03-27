@@ -3,24 +3,27 @@ package com.spinthechoice.privateproxy;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.Executor;
 
 import com.spinthechoice.privateproxy.ConnectParser.Server;
 import com.spinthechoice.privateproxy.ConnectParser.InvalidConnectException;
 
 class SocketHandler implements Runnable {
+    private final Executor executor;
     private final ServerSocket serverSocket;
     private Socket clientSocket;
 
-    SocketHandler(final ServerSocket serverSocket) {
+    SocketHandler(final Executor executor, final ServerSocket serverSocket) {
+        this.executor = executor;
         this.serverSocket = serverSocket;
-        newListener();
+        executor.execute(this);
     }
 
     /**
      * Create a new thread to listen.
      */
-    private void newListener() {
-        (new Thread(this)).start();
+    private void newHandler() {
+        executor.execute(new SocketHandler(executor, serverSocket));
     }
 
     /**
@@ -39,7 +42,7 @@ class SocketHandler implements Runnable {
             return;
         }
 
-        newListener();
+        newHandler();
 
         try {
             handleMessages();

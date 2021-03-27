@@ -18,14 +18,14 @@ class ProxyServerTest {
     private static ProxyServer server;
 
     @BeforeAll
-    static void startServer() {
-        server = new ProxyServer(PORT);
+    static void startServer() throws IOException {
+        server = new ProxyServer(PORT, 1);
         server.run();
     }
 
     @AfterAll
     static void stopServer() {
-        // TODO stop the server
+        server.close();
     }
 
     @Test

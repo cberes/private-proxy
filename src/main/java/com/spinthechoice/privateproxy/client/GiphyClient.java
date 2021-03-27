@@ -6,6 +6,10 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.net.Socket;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This example illustrates how to do proxy Tunneling to access a
@@ -211,7 +215,21 @@ public class GiphyClient {
     }
 
     public static void main(final String[] args) throws Exception {
-        final GiphyClient client = new GiphyClient(args[0], Integer.parseInt(args[1]), args[2]);
-        System.out.print(client.search(args[3]));
+        final ExecutorService executor = Executors.newCachedThreadPool();
+        for (int i = 3; i < args.length; ++i) {
+            final String searchTerm = args[i];
+            final boolean lastSearch = i == args.length - 1;
+            executor.submit(() -> {
+                final GiphyClient client = new GiphyClient(args[0], Integer.parseInt(args[1]), args[2]);
+                final String result = client.search(searchTerm);
+                System.out.println("Result length [" + searchTerm + "]: " + result.length());
+                if (lastSearch) {
+                    System.out.println(result);
+                }
+                return result;
+            });
+        }
+        executor.shutdown();
+        executor.awaitTermination(2, TimeUnit.MINUTES);
     }
 }

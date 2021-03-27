@@ -3,20 +3,45 @@ package com.spinthechoice.privateproxy;
 import javax.net.ServerSocketFactory;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class ProxyServer implements Runnable {
-    private final int port;
+    private static final int DEFAULT_THREAD_COUNT = 8;
 
-    public ProxyServer(final int port) {
-        this.port = port;
+    private final ServerSocket serverSocket;
+    private final ExecutorService executor;
+
+    public ProxyServer(final int port, final int threadCount) throws IOException {
+        final ServerSocketFactory socketFactory =  ServerSocketFactory.getDefault();
+        serverSocket = socketFactory.createServerSocket(port);
+        executor = Executors.newFixedThreadPool(threadCount);
     }
 
     @Override
     public void run() {
+        new SocketHandler(executor, serverSocket);
+    }
+
+    public void close() {
+        executor.shutdown();
         try {
-            final ServerSocketFactory socketFactory =  ServerSocketFactory.getDefault();
-            final ServerSocket serverSocket = socketFactory.createServerSocket(port);
-            new SocketHandler(serverSocket);
+            serverSocket.close();
+        } catch (IOException e) { }
+    }
+
+    public static void main(final String[] args) {
+        int port, threadCount;
+        try {
+            port = getPort(args);
+            threadCount = getThreadCount(args);
+        } catch (Exception e) {
+            System.err.println("USAGE: java " + SocketHandler.class.getSimpleName() + " PORT [ THREAD_COUNT ]");
+            return;
+        }
+
+        try {
+            new ProxyServer(port, threadCount).run();
         } catch (IOException e) {
             System.err.println("Unable to start " + SocketHandler.class.getSimpleName() + ": " +
                     e.getMessage());
@@ -24,12 +49,19 @@ public class ProxyServer implements Runnable {
         }
     }
 
-    public static void main(final String[] args) {
+    private static int getPort(final String[] args) throws Exception {
         if (args.length < 1) {
-            System.err.println("USAGE: java " + SocketHandler.class.getSimpleName() + " port");
+            throw new Exception("Port is required");
         }
 
-        int port = Integer.parseInt(args[0]);
-        new ProxyServer(port).run();
+        return Integer.parseInt(args[0]);
+    }
+
+    private static int getThreadCount(final String[] args) throws Exception {
+        if (args.length <= 1) {
+            return DEFAULT_THREAD_COUNT;
+        }
+
+        return Integer.parseInt(args[1]);
     }
 }
