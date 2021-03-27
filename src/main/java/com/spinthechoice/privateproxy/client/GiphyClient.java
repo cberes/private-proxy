@@ -19,19 +19,36 @@ import java.net.Socket;
  * TODO update this obsolete comment
  */
 public class GiphyClient {
-    private static final String GIPHY_API = "api.giphy.com";
-    private static final int GIPHY_PORT = 443;
-    private static final String USER_AGENT = "gif-tunnel";
-
     private final String tunnelHost;
     private final int tunnelPort;
+    private final String apiKey;
 
-    public GiphyClient(final String tunnelHost, final int tunnelPort) {
+    public GiphyClient(final String tunnelHost, final int tunnelPort, final String apiKey) {
         this.tunnelHost = tunnelHost;
         this.tunnelPort = tunnelPort;
+        this.apiKey = apiKey;
     }
 
-    public void doIt(final String apiKey, final String search) throws Exception {
+    // Exposed for testing
+    protected String giphyApi() {
+        return "api.giphy.com";
+    }
+
+    // Exposed for testing
+    protected int giphyPort() {
+        return 443;
+    }
+
+    // Exposed for testing
+    protected String connect() {
+        return "CONNECT";
+    }
+
+    private String userAgent() {
+        return getClass().getName();
+    }
+
+    public String search(final String search) throws IOException {
         /*
          * Let's setup the SSLContext first, as there's a lot of
          * computations to be done.  If the socket were created
@@ -47,21 +64,20 @@ public class GiphyClient {
          * over the top of it.
          */
         Socket tunnel = new Socket(tunnelHost, tunnelPort);
-        doTunnelHandshake(tunnel, GIPHY_API, GIPHY_PORT);
+        doTunnelHandshake(tunnel, giphyApi(), giphyPort());
 
         /*
          * Ok, let's overlay the tunnel socket with SSL.
          */
         SSLSocket socket =
-                (SSLSocket)factory.createSocket(tunnel, GIPHY_API, GIPHY_PORT, true);
+                (SSLSocket)factory.createSocket(tunnel, giphyApi(), giphyPort(), true);
 
         /*
          * register a callback for handshaking completion event
          */
         socket.addHandshakeCompletedListener(
                 new HandshakeCompletedListener() {
-                    public void handshakeCompleted(
-                            HandshakeCompletedEvent event) {
+                    public void handshakeCompleted(HandshakeCompletedEvent event) {
                         System.out.println("Handshake finished!");
                         System.out.println(
                                 "\t CipherSuite:" + event.getCipherSuite());
@@ -87,8 +103,8 @@ public class GiphyClient {
                                 socket.getOutputStream())));
 
         out.println(String.format("GET /v1/gifs/search?api_key=%s&q=%s HTTP/1.0", apiKey, search));
-        out.println("Host: " + GIPHY_API + ":" + GIPHY_PORT);
-        out.println("User-Agent: " + USER_AGENT);
+        out.println("Host: " + giphyApi() + ":" + giphyPort());
+        out.println("User-Agent: " + userAgent());
         out.println();
         out.flush();
 
@@ -96,23 +112,26 @@ public class GiphyClient {
          * Make sure there were no surprises
          */
         if (out.checkError())
-            System.out.println(
-                    "GiphyClient:  java.io.PrintWriter error");
+            System.err.println(getClass().getSimpleName() + ":  java.io.PrintWriter error");
 
         /* read response */
         BufferedReader in = new BufferedReader(
                 new InputStreamReader(
                         socket.getInputStream()));
 
+        final StringBuilder allInput = new StringBuilder();
+
         String inputLine;
 
-        while ((inputLine = in.readLine()) != null)
-            System.out.println(inputLine);
+        while ((inputLine = in.readLine()) != null) {
+            allInput.append(inputLine).append(System.lineSeparator());
+        }
 
         in.close();
         out.close();
         socket.close();
         tunnel.close();
+        return allInput.toString();
     }
 
     /*
@@ -121,8 +140,8 @@ public class GiphyClient {
      */
     private void doTunnelHandshake(Socket tunnel, String host, int port) throws IOException {
         OutputStream out = tunnel.getOutputStream();
-        String msg = "CONNECT " + host + ":" + port + " HTTP/1.1\n"
-                + "User-Agent: " + USER_AGENT
+        String msg = connect() + " " + host + ":" + port + " HTTP/1.1\n"
+                + "User-Agent: " + userAgent()
                 + "\r\n\r\n";
         byte b[];
         try {
@@ -192,6 +211,7 @@ public class GiphyClient {
     }
 
     public static void main(final String[] args) throws Exception {
-        new GiphyClient(args[0], Integer.parseInt(args[1])).doIt(args[2], args[3]);
+        final GiphyClient client = new GiphyClient(args[0], Integer.parseInt(args[1]), args[2]);
+        System.out.print(client.search(args[3]));
     }
 }

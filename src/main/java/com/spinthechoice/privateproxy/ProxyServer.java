@@ -14,8 +14,8 @@ public class ProxyServer implements Runnable {
     @Override
     public void run() {
         try {
-            ServerSocketFactory socketFactory =  ServerSocketFactory.getDefault();
-            ServerSocket serverSocket = socketFactory.createServerSocket(port);
+            final ServerSocketFactory socketFactory =  ServerSocketFactory.getDefault();
+            final ServerSocket serverSocket = socketFactory.createServerSocket(port);
             new SocketHandler(serverSocket);
         } catch (IOException e) {
             System.err.println("Unable to start " + SocketHandler.class.getSimpleName() + ": " +
