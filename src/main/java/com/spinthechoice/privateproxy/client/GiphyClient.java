@@ -6,27 +6,29 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.net.Socket;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * This example illustrates how to do proxy Tunneling to access a
- * secure web server from behind a firewall.
+ * Giphy API client that searches for GIFs.
+ * It connects to Giphy via a tunnel (over which SSL is negotiated).
  *
- * Please set the following Java system properties
- * to the appropriate values:
- *
- *   https.proxyHost = <secure proxy server hostname>
- *   https.proxyPort = <secure proxy server port>
- * TODO update this obsolete comment
+ * This is based on Oracle's example
+ * <a href="https://docs.oracle.com/javase/10/security/sample-code-illustrating-secure-socket-connection-client-and-server.htm">SSLSocketClientWithTunnelling</a>.
+ * As the client was not part of the coding challenge, this client is pretty bare-bones.
  */
 public class GiphyClient {
     private final String tunnelHost;
     private final int tunnelPort;
     private final String apiKey;
 
+    /**
+     * Creates a client.
+     * @param tunnelHost tunnel host (this is not Giphy)
+     * @param tunnelPort tunnel port
+     * @param apiKey Giphy API key
+     */
     public GiphyClient(final String tunnelHost, final int tunnelPort, final String apiKey) {
         this.tunnelHost = tunnelHost;
         this.tunnelPort = tunnelPort;
@@ -52,6 +54,12 @@ public class GiphyClient {
         return getClass().getName();
     }
 
+    /**
+     * Searches for GIFs based on the specified search term.
+     * @param search search term
+     * @return response
+     * @throws IOException any communication errors
+     */
     public String search(final String search) throws IOException {
         /*
          * Let's setup the SSLContext first, as there's a lot of
@@ -214,6 +222,19 @@ public class GiphyClient {
         /* tunneling Handshake was successful! */
     }
 
+    /**
+     * Search for GIFs via the client.
+     * The arguments are
+     * <ol>
+     *     <li>tunnel host (this is not Giphy)</li>
+     *     <li>tunnel port</li>
+     *     <li>API key</li>
+     *     <li>first search term*</li>
+     * </ol>
+     * *Additional search terms may be specified after this
+     * @param args arguments
+     * @throws Exception any errors
+     */
     public static void main(final String[] args) throws Exception {
         final ExecutorService executor = Executors.newCachedThreadPool();
         for (int i = 3; i < args.length; ++i) {
