@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ConnectParserTest {
     private static Server parse(final String s) throws InvalidConnectException {
-        return ConnectParser.fromStatusLine(s).parse();
+        return ConnectParser.fromRequestLine(s).parse();
     }
 
     @Test

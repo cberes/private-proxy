@@ -8,17 +8,29 @@ import java.util.concurrent.Executors;
 
 import static java.util.stream.IntStream.range;
 
-public class ProxyServer implements Runnable {
+/**
+ * The proxy server.
+ * Starts the {@link SocketHandler}s, which do most of the important work.
+ */
+public class ProxyServer implements Runnable, AutoCloseable {
     private static final int DEFAULT_THREAD_COUNT = 8;
 
     private final ServerSocket serverSocket;
     private final ExecutorService executor;
     private final int threadCount;
 
-    public ProxyServer(final int port, final int threadCount) throws IOException {
-        final ServerSocketFactory socketFactory =  ServerSocketFactory.getDefault();
+    /**
+     * Creates a new proxy server.
+     * @param port port
+     * @param socketFactory socket factory
+     * @param executor thread pool
+     * @param threadCount number of threads to handle connections
+     * @throws IOException any network errors
+     */
+    public ProxyServer(final int port, final ServerSocketFactory socketFactory,
+                       final ExecutorService executor, final int threadCount) throws IOException {
         serverSocket = socketFactory.createServerSocket(port);
-        executor = Executors.newFixedThreadPool(threadCount);
+        this.executor = executor;
         this.threadCount = threadCount;
     }
 
@@ -45,6 +57,10 @@ public class ProxyServer implements Runnable {
         };
     }
 
+    /**
+     * Stops the server.
+     */
+    @Override
     public void close() {
         executor.shutdown();
         try {
@@ -52,7 +68,17 @@ public class ProxyServer implements Runnable {
         } catch (IOException e) { }
     }
 
+    /**
+     * Starts the proxy server
+     * The arguments are
+     * <ol>
+     *     <li>port</li>
+     *     <li>number of threads (optional, default is {@value #DEFAULT_THREAD_COUNT})</li>
+     * </ol>
+     * @param args arguments
+     */
     public static void main(final String[] args) {
+        // get arguments
         int port, threadCount;
         try {
             port = getPort(args);
@@ -62,8 +88,13 @@ public class ProxyServer implements Runnable {
             return;
         }
 
+        // run server
         try {
-            new ProxyServer(port, threadCount).run();
+            new ProxyServer(
+                    port,
+                    ServerSocketFactory.getDefault(),
+                    Executors.newFixedThreadPool(threadCount),
+                    threadCount).run();
         } catch (IOException e) {
             System.err.println("Unable to start " + SocketHandler.class.getSimpleName() + ": " +
                     e.getMessage());

@@ -4,6 +4,9 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.StringTokenizer;
 
+/**
+ * Parses HTTP CONNECT messages.
+ */
 class ConnectParser {
     static class InvalidConnectException extends Exception {
         InvalidConnectException(final String message) {
@@ -11,34 +14,59 @@ class ConnectParser {
         }
     }
 
+    /**
+     * Result type.
+     */
     static record Server (InetAddress host, int port) {}
 
     private static final String METHOD = "CONNECT";
 
-    private final String statusLine;
+    private final String requestLine;
 
-    private ConnectParser(final String statusLine) {
-        this.statusLine = statusLine;
+    private ConnectParser(final String requestLine) {
+        this.requestLine = requestLine == null ? "" : requestLine;
     }
 
+    /**
+     * Parses the message.
+     * @return server info
+     * @throws InvalidConnectException if the server is invalid
+     */
     Server parse() throws InvalidConnectException {
-        final StringTokenizer tokens = new StringTokenizer(statusLine == null ? "" : statusLine);
-        final String method = tokens.hasMoreTokens() ? tokens.nextToken() : "";
+        final StringTokenizer tokens = new StringTokenizer(requestLine);
 
-        if (!METHOD.equalsIgnoreCase(method)) {
-            throw new InvalidConnectException("Not a " + METHOD + " message");
-        }
+        validateMethod(tokens);
 
+        validateMessageFormat(tokens);
+
+        final String[] parts = splitAndValidateFormat(tokens);
+
+        return toServer(parts);
+    }
+
+    private static void validateMessageFormat(final StringTokenizer tokens) throws InvalidConnectException {
         if (!tokens.hasMoreTokens()) {
             throw new InvalidConnectException("Invalid " + METHOD + " message");
         }
+    }
 
+    private static void validateMethod(final StringTokenizer tokens) throws InvalidConnectException {
+        final String method = tokens.hasMoreTokens() ? tokens.nextToken() : "";
+        if (!METHOD.equalsIgnoreCase(method)) {
+            throw new InvalidConnectException("Not a " + METHOD + " message");
+        }
+    }
+
+    private static String[] splitAndValidateFormat(final StringTokenizer tokens) throws InvalidConnectException {
         final String server = tokens.nextToken();
         final String[] parts = server.split(":");
         if (parts.length != 2) {
             throw new InvalidConnectException("Invalid server in " + METHOD);
         }
+        return parts;
+    }
 
+    private static Server toServer(final String[] parts) throws InvalidConnectException {
         try {
             final InetAddress name = InetAddress.getByName(parts[0]);
             final int port = Integer.parseInt(parts[1]);
@@ -57,7 +85,7 @@ class ConnectParser {
      * @param line CONNECT server-name:server-port HTTP/1.x
      * @return parser instance
      */
-    static ConnectParser fromStatusLine(final String line) {
+    static ConnectParser fromRequestLine(final String line) {
         return new ConnectParser(line);
     }
 }

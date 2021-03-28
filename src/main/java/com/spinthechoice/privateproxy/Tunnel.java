@@ -5,6 +5,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 
+/**
+ * Tunnels data from one socket directly to another socket.
+ */
 class Tunnel extends Thread implements AutoCloseable {
     private static final int BUFFER_SIZE = 4096;
 
@@ -13,6 +16,12 @@ class Tunnel extends Thread implements AutoCloseable {
     private final InputStream input;
     private final OutputStream output;
 
+    /**
+     * Creates the tunnel.
+     * @param sockIn socket to read from
+     * @param sockOut socket to write to
+     * @throws IOException any IO errors
+     */
     Tunnel(final Socket sockIn, final Socket sockOut) throws IOException {
         this.sockIn = sockIn;
         this.sockOut = sockOut;

@@ -1,6 +1,8 @@
 package com.spinthechoice.privateproxy;
 
+import javax.net.ServerSocketFactory;
 import java.io.IOException;
+import java.util.concurrent.Executors;
 
 import com.spinthechoice.privateproxy.client.GiphyClient;
 import org.junit.jupiter.api.AfterAll;
@@ -19,7 +21,9 @@ class ProxyServerTest {
 
     @BeforeAll
     static void startServer() throws IOException {
-        server = new ProxyServer(PORT, 1);
+        server = new ProxyServer(
+                PORT, ServerSocketFactory.getDefault(),
+                Executors.newSingleThreadExecutor(), 1);
         server.run();
     }
 
