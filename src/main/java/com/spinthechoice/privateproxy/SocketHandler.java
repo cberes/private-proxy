@@ -3,9 +3,6 @@ package com.spinthechoice.privateproxy;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -43,9 +40,9 @@ class SocketHandler implements Runnable {
         }
     }
 
-    private final List<Validator> validators = new CopyOnWriteArrayList<>();
     private final ServerSocket serverSocket;
     private final ExecutorService tunnelExecutor;
+    private final Validator validator;
     private Socket clientSocket;
 
     /**
@@ -54,24 +51,27 @@ class SocketHandler implements Runnable {
      * @param tunnelExecutor executor for tunnel threads
      */
     SocketHandler(final ServerSocket serverSocket, final ExecutorService tunnelExecutor) {
+        this(serverSocket, tunnelExecutor, x -> null);
+    }
+
+    /**
+     * Creates a new handler.
+     * @param serverSocket server socket
+     * @param tunnelExecutor executor for tunnel threads
+     * @param validator additional validation of incoming messages
+     */
+    SocketHandler(final ServerSocket serverSocket, final ExecutorService tunnelExecutor, final Validator validator) {
         this.serverSocket = serverSocket;
         this.tunnelExecutor = tunnelExecutor;
+        this.validator = validator;
     }
 
     /**
      * Returns whether the server is open (or running).
-     * @return
+     * @return whether the server is open
      */
     boolean isServerOpen() {
         return !serverSocket.isClosed();
-    }
-
-    /**
-     * Adds a new validator to validate requests.
-     * @param validator validator
-     */
-    void addValidator(final Validator validator) {
-        validators.add(validator);
     }
 
     /**
@@ -115,7 +115,7 @@ class SocketHandler implements Runnable {
         try {
 
             Server server = getServer(readRequestLine());
-            runValidators(server);
+            runValidator(server);
             sendOk();
             tunnelClientAndServer(server);
 
@@ -152,13 +152,10 @@ class SocketHandler implements Runnable {
                 line.charAt(0) != '\r' && line.charAt(0) != '\n');
     }
 
-    private void runValidators(final Server server) throws BadRequestException {
-        final Optional<String> reason = validators.stream()
-                .map(it -> it.checkServer(server))
-                .filter(s -> s != null && !s.isEmpty())
-                .findFirst();
-        if (reason.isPresent()) {
-            throw new BadRequestException(reason.get());
+    private void runValidator(final Server server) throws BadRequestException {
+        final String reason = validator.checkServer(server);
+        if (reason != null && !reason.isEmpty()) {
+            throw new BadRequestException(reason);
         }
     }
 

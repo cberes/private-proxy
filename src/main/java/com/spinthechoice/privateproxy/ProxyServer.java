@@ -50,9 +50,8 @@ public class ProxyServer implements Runnable, AutoCloseable {
     }
 
     private Runnable newHandler() {
-        final SocketHandler handler = new SocketHandler(serverSocket, tunnelExecutor);
-        handler.addValidator(enforceGiphy());
-        return new LoopingSocketHandler(handler);
+        return new LoopingSocketHandler(
+                new SocketHandler(serverSocket, tunnelExecutor, enforceGiphy()));
     }
 
     private SocketHandler.Validator enforceGiphy() {
