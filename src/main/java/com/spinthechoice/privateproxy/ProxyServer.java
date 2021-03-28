@@ -25,8 +25,24 @@ public class ProxyServer implements Runnable {
     @Override
     public void run() {
         range(0, threadCount)
-                .mapToObj(i -> new LoopingSocketHandler(new SocketHandler(serverSocket)))
+                .mapToObj(i -> newHandler())
                 .forEach(executor::submit);
+    }
+
+    private Runnable newHandler() {
+        final SocketHandler handler = new SocketHandler(serverSocket);
+        handler.addValidator(enforceGiphy());
+        return new LoopingSocketHandler(handler);
+    }
+
+    private SocketHandler.Validator enforceGiphy() {
+        return server -> {
+            if ("api.giphy.com".equalsIgnoreCase(server.host().getHostName()) && server.port() == 443) {
+                return null;
+            } else {
+                return server.host() + " is not trusted";
+            }
+        };
     }
 
     public void close() {

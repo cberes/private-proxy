@@ -3,11 +3,19 @@ package com.spinthechoice.privateproxy;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.spinthechoice.privateproxy.ConnectParser.Server;
 import com.spinthechoice.privateproxy.ConnectParser.InvalidConnectException;
 
 class SocketHandler implements Runnable {
+    @FunctionalInterface
+    interface Validator {
+        String checkServer(Server server);
+    }
+
+    private final List<Validator> validators = new CopyOnWriteArrayList<>();
     private final ServerSocket serverSocket;
     private Socket clientSocket;
 
@@ -17,6 +25,10 @@ class SocketHandler implements Runnable {
 
     public boolean isServerOpen() {
         return !serverSocket.isClosed();
+    }
+
+    public void addValidator(final Validator validator) {
+        validators.add(validator);
     }
 
     /**
@@ -63,8 +75,9 @@ class SocketHandler implements Runnable {
             return;
         }
 
-        if (!isValidHost(server)) {
-            badRequest(server.host() + " is not trusted");
+        final String invalidReason = runValidators(server);
+        if (!invalidReason.isEmpty()) {
+            badRequest(invalidReason);
             return;
         }
 
@@ -86,8 +99,12 @@ class SocketHandler implements Runnable {
                 line.charAt(0) != '\r' && line.charAt(0) != '\n');
     }
 
-    private static boolean isValidHost(final Server server) {
-        return "api.giphy.com".equalsIgnoreCase(server.host().getHostName()) && server.port() == 443;
+    private String runValidators(final Server server) {
+        return validators.stream()
+                .map(it -> it.checkServer(server))
+                .filter(reason -> reason != null && !reason.isEmpty())
+                .findFirst()
+                .orElse("");
     }
 
     private void badRequest(final String reason) throws IOException {
