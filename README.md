@@ -13,6 +13,7 @@ gradle clean build
 ```
 
 ## Start the server
+### From the uberjar
 ```
 java -cp build/libs/private-proxy-all.jar \
 com.spinthechoice.privateproxy.ProxyServer \
@@ -25,6 +26,29 @@ gradle run --args="8443"
 You can also specify the number of threads to use
 ```
 gradle run --args="8443 8"
+```
+### In your code
+```java
+import javax.net.ServerSocketFactory;
+import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import com.spinthechoice.privateproxy.ProxyServer;
+
+class Example {
+    void startServer() throws IOException {
+        int port = 8443;
+        int threads = 4;
+        ServerSocketFactory socketFactory = ServerSocketFactory.getDefault();
+        ExecutorService threadPool = Executors.newFixedThreadPool(threadCount);
+
+        new ProxyServer(
+                port,
+                socketFactory,
+                threadPool,
+                threadCount).run();
+    }
+}
 ```
 
 ## Start the client
