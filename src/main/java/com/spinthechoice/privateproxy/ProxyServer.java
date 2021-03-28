@@ -6,21 +6,27 @@ import java.net.ServerSocket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static java.util.stream.IntStream.range;
+
 public class ProxyServer implements Runnable {
     private static final int DEFAULT_THREAD_COUNT = 8;
 
     private final ServerSocket serverSocket;
     private final ExecutorService executor;
+    private final int threadCount;
 
     public ProxyServer(final int port, final int threadCount) throws IOException {
         final ServerSocketFactory socketFactory =  ServerSocketFactory.getDefault();
         serverSocket = socketFactory.createServerSocket(port);
         executor = Executors.newFixedThreadPool(threadCount);
+        this.threadCount = threadCount;
     }
 
     @Override
     public void run() {
-        new SocketHandler(executor, serverSocket);
+        range(0, threadCount)
+                .mapToObj(i -> new LoopingSocketHandler(new SocketHandler(serverSocket)))
+                .forEach(executor::submit);
     }
 
     public void close() {
