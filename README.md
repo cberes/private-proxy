@@ -102,3 +102,7 @@ I don't know that any exceptions that are output would violate a user's privacy,
 ### Static analysis
 
 If I expected this code to receive updates in the future, I would setup static analysis such as Checkstyle.
+
+### Remove the client
+
+If I were releasing this as a library, I would remove the client. I included it just to verify that the server works. I wouldn't want to get in a situation where clients depend on it and its removal would be a breaking change.
