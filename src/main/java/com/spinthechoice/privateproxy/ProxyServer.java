@@ -16,21 +16,29 @@ public class ProxyServer implements Runnable, AutoCloseable {
     private static final int DEFAULT_THREAD_COUNT = 8;
 
     private final ServerSocket serverSocket;
-    private final ExecutorService executor;
+    private final ExecutorService socketHandlerExecutor;
     private final int threadCount;
+    /**
+     * A separate pool for tunnel threads.
+     * The number of tunnel threads is limited to the number of socket threads * 2.
+     * It makes no sense to impose any other kind of limitation on tunnel threads.
+     * According to the javadoc the cached thread pool should give better
+     * performance than creating a new thread for every tunnel.
+     */
+    private final ExecutorService tunnelExecutor = Executors.newCachedThreadPool();
 
     /**
      * Creates a new proxy server.
      * @param port port
      * @param socketFactory socket factory
-     * @param executor thread pool
+     * @param socketHandlerExecutor thread pool for SocketHandlers
      * @param threadCount number of threads to handle connections
      * @throws IOException any network errors
      */
     public ProxyServer(final int port, final ServerSocketFactory socketFactory,
-                       final ExecutorService executor, final int threadCount) throws IOException {
+                       final ExecutorService socketHandlerExecutor, final int threadCount) throws IOException {
         serverSocket = socketFactory.createServerSocket(port);
-        this.executor = executor;
+        this.socketHandlerExecutor = socketHandlerExecutor;
         this.threadCount = threadCount;
     }
 
@@ -38,11 +46,11 @@ public class ProxyServer implements Runnable, AutoCloseable {
     public void run() {
         range(0, threadCount)
                 .mapToObj(i -> newHandler())
-                .forEach(executor::submit);
+                .forEach(socketHandlerExecutor::submit);
     }
 
     private Runnable newHandler() {
-        final SocketHandler handler = new SocketHandler(serverSocket);
+        final SocketHandler handler = new SocketHandler(serverSocket, tunnelExecutor);
         handler.addValidator(enforceGiphy());
         return new LoopingSocketHandler(handler);
     }
@@ -62,7 +70,8 @@ public class ProxyServer implements Runnable, AutoCloseable {
      */
     @Override
     public void close() {
-        executor.shutdown();
+        socketHandlerExecutor.shutdown();
+        tunnelExecutor.shutdown();
         try {
             serverSocket.close();
         } catch (IOException e) { }

@@ -6,6 +6,9 @@ import java.net.Socket;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import com.spinthechoice.privateproxy.ConnectParser.Server;
 import com.spinthechoice.privateproxy.ConnectParser.InvalidConnectException;
@@ -42,14 +45,17 @@ class SocketHandler implements Runnable {
 
     private final List<Validator> validators = new CopyOnWriteArrayList<>();
     private final ServerSocket serverSocket;
+    private final ExecutorService tunnelExecutor;
     private Socket clientSocket;
 
     /**
      * Creates a new handler.
      * @param serverSocket server socket
+     * @param tunnelExecutor executor for tunnel threads
      */
-    SocketHandler(final ServerSocket serverSocket) {
+    SocketHandler(final ServerSocket serverSocket, final ExecutorService tunnelExecutor) {
         this.serverSocket = serverSocket;
+        this.tunnelExecutor = tunnelExecutor;
     }
 
     /**
@@ -171,19 +177,21 @@ class SocketHandler implements Runnable {
              final Tunnel clientToServer = new Tunnel(clientSocket, serverSocket);
              final Tunnel serverToClient = new Tunnel(serverSocket, clientSocket)) {
 
-            clientToServer.start();
-            serverToClient.start();
+            final Future<?> clientFuture = tunnelExecutor.submit(clientToServer);
+            final Future<?> serverFuture = tunnelExecutor.submit(serverToClient);
 
-            join(clientToServer);
-            join(serverToClient);
+            waitFor(clientFuture);
+            waitFor(serverFuture);
         }
     }
 
-    private static void join(final Tunnel tunnel) {
+    private static void waitFor(final Future<?> future) throws IOException {
         try {
-            tunnel.join();
+            future.get();
+        } catch (ExecutionException e) {
+            throw new IOException("Error in tunnel thread", e.getCause());
         } catch (InterruptedException e) {
-            tunnel.interrupt();
+            Thread.currentThread().interrupt();
         }
     }
 

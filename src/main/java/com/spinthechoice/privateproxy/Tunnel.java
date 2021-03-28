@@ -8,7 +8,7 @@ import java.net.Socket;
 /**
  * Tunnels data from one socket directly to another socket.
  */
-class Tunnel extends Thread implements AutoCloseable {
+class Tunnel implements Runnable, AutoCloseable {
     private static final int BUFFER_SIZE = 4096;
 
     private final Socket sockIn;
