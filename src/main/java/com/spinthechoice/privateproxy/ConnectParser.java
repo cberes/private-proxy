@@ -22,8 +22,8 @@ class ConnectParser {
     }
 
     Server parse() throws InvalidConnectException {
-        final StringTokenizer tokens = new StringTokenizer(statusLine);
-        final String method = tokens.nextToken();
+        final StringTokenizer tokens = new StringTokenizer(statusLine == null ? "" : statusLine);
+        final String method = tokens.hasMoreTokens() ? tokens.nextToken() : "";
 
         if (!METHOD.equalsIgnoreCase(method)) {
             throw new InvalidConnectException("Not a " + METHOD + " message");
