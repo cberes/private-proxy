@@ -72,7 +72,7 @@ class SocketHandler implements Runnable {
             return;
         }
 
-        if (!isValidHost(server.host().getHostName())) {
+        if (!isValidHost(server)) {
             badRequest(server.host() + " is not trusted");
             return;
         }
@@ -95,8 +95,8 @@ class SocketHandler implements Runnable {
                 line.charAt(0) != '\r' && line.charAt(0) != '\n');
     }
 
-    private static boolean isValidHost(final String host) {
-        return "api.giphy.com".equalsIgnoreCase(host);
+    private static boolean isValidHost(final Server server) {
+        return "api.giphy.com".equalsIgnoreCase(server.host().getHostName()) && server.port() == 443;
     }
 
     private void badRequest(final String reason) throws IOException {
