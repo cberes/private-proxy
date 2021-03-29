@@ -40,13 +40,13 @@ class Example {
         int port = 8443;
         int threads = 4;
         ServerSocketFactory socketFactory = ServerSocketFactory.getDefault();
-        ExecutorService threadPool = Executors.newFixedThreadPool(threadCount);
+        ExecutorService threadPool = Executors.newFixedThreadPool(threads);
 
         new ProxyServer(
                 port,
                 socketFactory,
                 threadPool,
-                threadCount).run();
+                threads).run();
     }
 }
 ```
