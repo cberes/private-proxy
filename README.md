@@ -51,16 +51,6 @@ class Example {
 }
 ```
 
-## Start the client
-| :point_up:    | Include your API key and search term instead of the placeholders |
-|---------------|:-----------------------------------------------------------------|
-```
-java -cp build/libs/private-proxy-all.jar \
-com.spinthechoice.privateproxy.client.GiphyClient \
-localhost 8443 API_KEY SEARCH_TERM
-```
-Multiple search terms can be specified, and the client will perform each search in a new thread.
-
 ## Notes
 
 ### Acknowledgements
@@ -70,10 +60,6 @@ I'm not familiar with socket programming, so I had to do some research. I found 
 ### HTTP version
 
 The server always responds with a version of `HTTP/1.1`. However, it could easily read the version from incoming requests and include the same version in responses. I don't know what the proper behavior is for this.
-
-### Giphy client
-
-I included a client for Giphy. Because it wasn't part of the coding task, it's a quick-and-dirty extension of an [example client](https://docs.oracle.com/javase/10/security/sample-code-illustrating-secure-socket-connection-client-and-server.htm).
 
 ## Next steps
 
@@ -91,7 +77,13 @@ The Giphy service is hard-coded as the only trusted service. If additional servi
 
 ### Testing
 
-It feels silly to write exhaustive unit tests for code that will never be used. If this were production code, it would need thorough unit tests. Also load testing should be done to ensure it meets any performance requirements.
+There were no performance requirements, but if there were I would do load testing with Jmeter. Another server would need to be setup in place of Giphy. Preferably this server (the private proxy) and the test server would run on dedicated machines.
+
+It wouldn't be a bad idea to do some profiling to verify that there are no artificial bottlenecks or memory leaks.
+
+### Monitoring
+
+Monitoring should be setup to identify any problems once the code is live.
 
 ### Logging
 
@@ -102,7 +94,3 @@ I don't know that any exceptions that are output would violate a user's privacy,
 ### Static analysis
 
 If I expected this code to receive updates in the future, I would setup static analysis such as Checkstyle.
-
-### Remove the client
-
-If I were releasing this as a library, I would remove the client. I included it just to verify that the server works. I wouldn't want to get in a situation where clients depend on it and its removal would be a breaking change.

@@ -6,6 +6,8 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.net.Socket;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -19,6 +21,69 @@ import java.util.concurrent.TimeUnit;
  * As the client was not part of the coding challenge, this client is pretty bare-bones.
  */
 public class GiphyClient {
+    public static class Response {
+        private final int statusCode;
+        private final String status;
+        private final List<Header> headers;
+        private final String body;
+
+        public Response(final int statusCode, final String status, final String body, final List<Header> headers) {
+            this.statusCode = statusCode;
+            this.status = status;
+            this.headers = headers;
+            this.body = body;
+        }
+
+        public int getStatusCode() {
+            return statusCode;
+        }
+
+        public String getStatus() {
+            return status;
+        }
+
+        public List<Header> getHeaders() {
+            return headers;
+        }
+
+        public String getBody() {
+            return body;
+        }
+
+        @Override
+        public String toString() {
+            return "Response{" +
+                    "statusCode=" + statusCode +
+                    ", status='" + status + '\'' +
+                    ", headers=" + headers +
+                    ", body='" + body + '\'' +
+                    '}';
+        }
+    }
+
+    public static class Header {
+        private final String name;
+        private final String value;
+
+        public Header(final String name, final String value) {
+            this.name = name;
+            this.value = value;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public String getValue() {
+            return value;
+        }
+
+        @Override
+        public String toString() {
+            return name + ": " + value;
+        }
+    }
+
     private final String tunnelHost;
     private final int tunnelPort;
     private final String apiKey;
@@ -60,7 +125,7 @@ public class GiphyClient {
      * @return response
      * @throws IOException any communication errors
      */
-    public String search(final String search) throws IOException {
+    public Response search(final String search) throws IOException {
         /*
          * Let's setup the SSLContext first, as there's a lot of
          * computations to be done.  If the socket were created
@@ -109,41 +174,32 @@ public class GiphyClient {
          */
         socket.startHandshake();
 
-        PrintWriter out = new PrintWriter(
+        final PrintWriter out = new PrintWriter(
                 new BufferedWriter(
                         new OutputStreamWriter(
                                 socket.getOutputStream())));
 
-        out.println(String.format("GET /v1/gifs/search?api_key=%s&q=%s HTTP/1.0", apiKey, search));
-        out.println("Host: " + giphyApi() + ":" + giphyPort());
-        out.println("User-Agent: " + userAgent());
-        out.println();
-        out.flush();
+        sendRequest(search, out);
 
         /*
          * Make sure there were no surprises
          */
-        if (out.checkError())
+        if (out.checkError()) {
             System.err.println(getClass().getSimpleName() + ":  java.io.PrintWriter error");
+        }
 
         /* read response */
-        BufferedReader in = new BufferedReader(
+        final BufferedReader in = new BufferedReader(
                 new InputStreamReader(
                         socket.getInputStream()));
 
-        final StringBuilder allInput = new StringBuilder();
-
-        String inputLine;
-
-        while ((inputLine = in.readLine()) != null) {
-            allInput.append(inputLine).append(System.lineSeparator());
-        }
+        final Response response = parseResponse(in);
 
         in.close();
         out.close();
         socket.close();
         tunnel.close();
-        return allInput.toString();
+        return response;
     }
 
     /*
@@ -222,6 +278,46 @@ public class GiphyClient {
         /* tunneling Handshake was successful! */
     }
 
+    protected void sendRequest(final String search, final PrintWriter out) {
+        out.println(String.format("GET /v1/gifs/search?api_key=%s&q=%s HTTP/1.0", apiKey, search));
+        out.println("Host: " + giphyApi() + ":" + giphyPort());
+        out.println("User-Agent: " + userAgent());
+        out.println();
+        out.flush();
+    }
+
+    private Response parseResponse(final BufferedReader in) throws IOException {
+        int statusCode = -1;
+        String status = null;
+        boolean parsingBody = false;
+        final List<Header> headers = new LinkedList<>();
+        final StringBuilder body = new StringBuilder();
+
+        String inputLine;
+
+        /* yes I know this sucks */
+        while ((inputLine = in.readLine()) != null) {
+            if (statusCode < 0) {
+                String[] parts = inputLine.split("\\s+", 3);
+                if (parts.length == 3) {
+                    statusCode = Integer.parseInt(parts[1]);
+                    status = parts[2];
+                }
+            } else if (parsingBody) {
+                if (body.length() != 0) {
+                    body.append(System.lineSeparator());
+                }
+                body.append(inputLine);
+            } else if (!inputLine.isEmpty()) {
+                String[] parts = inputLine.split(":\\s*", 3);
+                headers.add(new Header(parts[0], parts[1]));
+            } else {
+                parsingBody = true;
+            }
+        }
+        return new Response(statusCode, status, body.toString(), headers);
+    }
+
     /**
      * Search for GIFs via the client.
      * The arguments are
@@ -242,7 +338,7 @@ public class GiphyClient {
             final boolean lastSearch = i == args.length - 1;
             executor.submit(() -> {
                 final GiphyClient client = new GiphyClient(args[0], Integer.parseInt(args[1]), args[2]);
-                final String result = client.search(searchTerm);
+                final String result = client.search(searchTerm).toString();
                 System.out.println("Result length [" + searchTerm + "]: " + result.length());
                 if (lastSearch) {
                     System.out.println(result);
